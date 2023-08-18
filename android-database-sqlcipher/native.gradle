@@ -35,7 +35,7 @@ task buildAmalgamation() {
     exec {
       workingDir "${sqlcipherDir}"
       environment("CFLAGS", "${sqlcipherCFlags}")
-      commandLine "./configure", "--enable-tempstore=yes", "--with-crypto-lib=none"
+      commandLine "./configure", "--enable-tempstore=yes", "--with-crypto-lib=boringssl", LDFLAGS="-lcrypto"
     }
     exec {
       workingDir "${sqlcipherDir}"
@@ -62,13 +62,13 @@ task buildNative() {
       file("src/main/cpp").absolutePath,
       file("src/main/cpp/Application32.mk").absolutePath,
       "${sqlcipherCFlags}", "${otherSqlcipherCFlags}",
-      "${minimumAndroidSdkVersion}")
+      "29")
     executeNdkBuild(
       "${nativeRootOutputDir}/libs64",
       file("src/main/cpp").absolutePath,
       file("src/main/cpp/Application64.mk").absolutePath,
       "${sqlcipherCFlags}", "${otherSqlcipherCFlags}",
-      "${minimumAndroid64BitSdkVersion}")
+      "29")
     exec {
       workingDir "${nativeRootOutputDir}"
       commandLine "mkdir", "-p", "libs"
@@ -124,7 +124,7 @@ task cleanNative() {
 
 task distclean() {
   description "Clean build, SQLCipher, and OpenSSL artifacts"
-  dependsOn clean, cleanSQLCipher, cleanOpenSSL
+  dependsOn clean, cleanSQLCipher
   doLast {
     new File("${androidNativeRootDir}/").deleteDir()
   }
@@ -144,7 +144,10 @@ def gitClean(directory) {
 
 def executeNdkBuild(outputDir, androidMkDirectory, applicationMkFile,
                     cflags, otherSqlcipherCFlags, androidVersion) {
-  logger.info "Executing NDK build command"
+  println "Executing NDK build command"
+  println "Build"
+
+
   def out = services.get(StyledTextOutputFactory).create("")
   out.style(Style.Normal).text("SQLCIPHER_CFLAGS=").style(Style.Info).println("${cflags}")
   out.style(Style.Normal).text("OPENSSL_DIR=").style(Style.Info).println("${opensslDir}")
@@ -152,6 +155,7 @@ def executeNdkBuild(outputDir, androidMkDirectory, applicationMkFile,
   out.style(Style.Normal).text("SQLCIPHER_OTHER_CFLAGS=").style(Style.Info).println("${otherSqlcipherCFlags}")
   out.style(Style.Normal).text("ANDROID_NATIVE_ROOT_DIR=").style(Style.Info).println("${androidNativeRootDir}")
   out.style(Style.Normal).text("NDK_APP_PLATFORM=").style(Style.Info).println("${androidVersion}")
+  
 
   exec {
     def outputDirectory = "NDK_LIBS_OUT=${outputDir}"
@@ -162,6 +166,7 @@ def executeNdkBuild(outputDir, androidMkDirectory, applicationMkFile,
                                 "SQLCIPHER_OTHER_CFLAGS" : "${otherSqlcipherCFlags}",
                                 "ANDROID_NATIVE_ROOT_DIR": "${androidNativeRootDir}",
                                 "NDK_APP_PLATFORM"       : "${androidVersion}"]
+    
     environment(environmentVariables)
       commandLine "ndk-build", "V=1", "${ndkBuildType}",
       "--environment-overrides", outputDirectory,
